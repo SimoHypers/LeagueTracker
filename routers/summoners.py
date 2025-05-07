@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+# Existing imports and setup...
+from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from dependencies import get_current_user
 from supabase_client import supabase
 from pydantic import BaseModel, Field
@@ -14,7 +15,6 @@ load_dotenv()
 api_key = os.getenv("RIOT_API_KEY")
 if not api_key:
     raise ValueError("Missing RIOT API KEY in enviroment variables (check .env file)")
-
 
 router = APIRouter(prefix="/summoners", tags=["summoners"])
 
@@ -61,32 +61,82 @@ class Match(BaseModel):
     game_start: Optional[datetime]
     summoner_profile_id: Optional[int]
 
-
-# Function to get user puuid
+# FUNCTIONS
 def get_puuid(summoner_name: str, tagline: str, region_map: str) -> str:
     api_url = f'https://{region_map}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{summoner_name}/{tagline}?api_key={api_key}'
-
     response = requests.get(api_url)
-
     if response.status_code == 200:
         user_info = response.json()
         return user_info['puuid']
     else:
         print(f"Error: {response.status_code}")
+        raise HTTPException(status_code=response.status_code, detail="Failed to fetch puuid")
 
+def get_matchIDs(region, puuid, no_matches, api_key):
+    api_url = f'https://{region}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count={no_matches}&api_key={api_key}'
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error: {response.status_code}")
+        raise HTTPException(status_code=response.status_code, detail="Failed to fetch match IDs")
 
+def get_matchdata(region, matchID, api_key):
+    api_url = f'https://{region}.api.riotgames.com/lol/match/v5/matches/{matchID}?api_key={api_key}'
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error: {response.status_code}")
+        raise HTTPException(status_code=response.status_code, detail="Failed to fetch match data")
 
+def get_player_matchData(matchData, player_puuid):
+    try:
+        participants = matchData['metadata']['participants']
+        index = participants.index(player_puuid)
+        return matchData['info']['participants'][index]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to extract player data: {e}")
+
+# ROUTES
 @router.get("/puuid")
 def fetch_puuid(
     summoner_name: str = Query(..., example="Simo"),
     tagline: str = Query(..., example="LEMON"),
     region_map: str = Query(..., example="EUROPE")
 ):
+    puuid = get_puuid(summoner_name, tagline, region_map)
+    return {"puuid": puuid}
+
+
+@router.get("/match-ids")
+def fetch_match_ids(
+    region: str = Query(..., example="europe"),
+    puuid: str = Query(..., example="some-puuid"),
+    count: int = Query(5, ge=1, le=100),
+):
+    match_ids = get_matchIDs(region, puuid, count, api_key)
+    return {"match_ids": match_ids}
+
+
+@router.get("/match-data")
+def fetch_match_data(
+    region: str = Query(..., example="europe"),
+    match_id: str = Query(..., example="EUW1_1234567890"),
+):
+    match_data = get_matchdata(region, match_id, api_key)
+    return {"match_data": match_data}
+
+
+@router.get("/match/playerdata")
+def fetch_player_match_data(
+    match_id: str = Query(...),
+    region: str = Query(...),
+    player_puuid: str = Query(...)
+):
     try:
-        puuid = get_puuid(summoner_name, tagline, region_map)
-        return {"puuid": puuid}
+        match_data = get_matchdata(region, match_id, api_key)
+        player_data = get_player_matchData(match_data, player_puuid)
+        return player_data
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-
+        raise HTTPException(status_code=500, detail=str(e))
