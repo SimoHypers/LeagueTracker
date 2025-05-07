@@ -11,18 +11,18 @@ from datetime import datetime
 
 load_dotenv()
 
-API_KEY = os.getenv("RIOT_API_KEY")
-if not API_KEY:
+api_key = os.getenv("RIOT_API_KEY")
+if not api_key:
     raise ValueError("Missing RIOT API KEY in enviroment variables (check .env file)")
 
 
-router = APIRouter(prefix="summoners", tags=["summoners"])
+router = APIRouter(prefix="/summoners", tags=["summoners"])
 
 # MODELS
 class SummonerCreate(BaseModel):
     summoner_name: str
     tagline: str = Field(..., description="Riot ID tagline, e.g., 'LEMON' in Simo#LEMON")
-    region: str = Field(..., description="Region code, e.g., 'na1', 'euw1', 'me1'...")
+    region: str = Field(..., description="Region map, e.g., AMERICAS, EUROPE...")
 
 class SummonerResponse(BaseModel):
     id: str
@@ -60,3 +60,33 @@ class Match(BaseModel):
     team_id: Optional[int]
     game_start: Optional[datetime]
     summoner_profile_id: Optional[int]
+
+
+# Function to get user puuid
+def get_puuid(summoner_name: str, tagline: str, region_map: str) -> str:
+    api_url = f'https://{region_map}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{summoner_name}/{tagline}?api_key={api_key}'
+
+    response = requests.get(api_url)
+
+    if response.status_code == 200:
+        user_info = response.json()
+        return user_info['puuid']
+    else:
+        print(f"Error: {response.status_code}")
+
+
+
+@router.get("/puuid")
+def fetch_puuid(
+    summoner_name: str = Query(..., example="Simo"),
+    tagline: str = Query(..., example="LEMON"),
+    region_map: str = Query(..., example="EUROPE")
+):
+    try:
+        puuid = get_puuid(summoner_name, tagline, region_map)
+        return {"puuid": puuid}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+

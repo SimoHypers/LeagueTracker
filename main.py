@@ -2,7 +2,7 @@ from supabase_client import supabase
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
-from routers import auth
+from routers import auth, summoners
 
 app = FastAPI()
 
@@ -20,6 +20,7 @@ def read_root():
 
 #Including Routers
 app.include_router(auth.router)
+app.include_router(summoners.router)
 
 
 
