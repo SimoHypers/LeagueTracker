@@ -58,6 +58,52 @@ def get_player_matchData(matchData: Dict[str,Any], puuid: str) -> Dict[str,Any]:
     return matchData["info"]["participants"][idx]
 
 
+def insert_player_matchData(puuid: str, match: Dict[str, Any]):
+    player = get_player_matchData(match, puuid)
+    match_id = match["metadata"]["matchId"]
+    game_start = datetime.fromtimestamp(match["info"]["gameStartTimestamp"] / 1000, tz=timezone.utc)
+
+    summoner_res = supabase.table("summoner_profiles").select("id").eq("puuid", puuid).execute()
+    if not summoner_res.data:
+        raise HTTPException(status_code=404, detail="Summoner profile not found")
+    summoner_profile_id = summoner_res.data[0]["id"]
+
+    payload = {
+        "match_id": match_id,
+        "puuid": puuid,
+        "win": player.get("win"),
+        "role": player.get("role"),
+        "kills": player.get("kills"),
+        "deaths": player.get("deaths"),
+        "assists": player.get("assists"),
+        "team_id": player.get("teamId"),
+        "game_start": game_start.isoformat(),
+        "summoner_profile_id": summoner_profile_id,
+        "riotid_gamename": player.get("riotIdGameName"),
+        "riotid_tagline": player.get("riotIdTagline"),
+        "summoner_level": player.get("summonerLevel"),
+        "champion_name": player.get("championName"),
+        "total_damagedealttochampions": player.get("totalDamageDealtToChampions"),
+        "enemy_missing_pings": player.get("enemyMissingPings"),
+        "gold_earned": player.get("goldEarned"),
+        "damage_per_minute": player.get("challenges", {}).get("damagePerMinute"),
+        "skillshot_dodged": player.get("challenges", {}).get("skillshotsDodged"),
+        "skillshot_hit": player.get("challenges", {}).get("skillshotsHit"),
+        "damage_dealt_to_turrets": player.get("damageDealtToTurrets"),
+        "longest_time_living": player.get("longestTimeSpentLiving"),
+        "game_ended_in_surrender": player.get("gameEndedInSurrender"),
+        "team_early_surrendered": player.get("teamEarlySurrendered")
+
+        # TODO Add more later, first ill review the json then add whatever data i want
+    }
+
+    insert_res = supabase.table("player_matches").insert(payload).execute()
+
+    if not insert_res.data:
+        raise HTTPException(status_code=500, detail=f"Failed to insert player match data. Response: {insert_res.__dict__}")
+    return insert_res.data[0]
+
+
 
 @router.post("/create-profile", response_model=SummonerProfile)
 def create_summoner_profile(summoner: SummonerCreate):
@@ -97,5 +143,7 @@ def create_summoner_profile(summoner: SummonerCreate):
             status_code=500,
             detail=f"Insert failed, no data returned. Full response: {res.__dict__}"
         )
+    
+    insert_player_matchData(puuid, match)
 
     return SummonerProfile(**res.data[0])

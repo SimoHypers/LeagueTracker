@@ -25,11 +25,3 @@ app.include_router(summoners.router)
 
 
 
-
-#data = supabase.table("test").insert({"test":"testing 12345"}).execute()
-#data = supabase.table("test").select("*").execute()
-#print(data)
-
-#data = supabase.table("test").delete().eq("id", 2).execute()
-#print(data)
-
