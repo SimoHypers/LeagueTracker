@@ -61,24 +61,35 @@ class Match(BaseModel):
     game_start: Optional[datetime]
     summoner_profile_id: Optional[int]
 
-@router.post("/create-profile")
+@router.post("/create-profile", response_model=Dict[str, Any])
 def create_summoner_profile(
     summoner: SummonerCreate,
     user = Depends(get_current_user)
 ):
-    puuid = get_puuid(summoner.summoner_name, summoner.tagline, summoner.region)
-    match_ids = get_matchIDs(summoner.region.lower(), puuid, 1)
-    match_data = get_matchdata(summoner.region.lower(), match_ids[0])
-    player_data = get_player_matchData(match_data, puuid)
+    try:
+        puuid = get_puuid(summoner.summoner_name, summoner.tagline, summoner.region)
+        match_ids = get_matchIDs(summoner.region.lower(), puuid, 1)             #TODO: Change from 1 to 20 later
+        if not match_ids:
+            raise HTTPException(status_code=404, detail="No recent matches found.")
+        
+        match_data = get_matchdata(summoner.region.lower(), match_ids[0])
+        player_data = get_player_matchData(match_data, puuid)
 
-    # Insert into Supabase using the logged-in user's ID
-    insert_response = insert_summoner_profiles(
-        player_data=player_data,
-        user_id=user.id,
-        region=summoner.region
-    )
+        insert_response = insert_summoner_profiles(
+            player_data=player_data,
+            user_id=user.id,
+            region=summoner.region
+        )
 
-    return {"status": "success", "inserted": insert_response.data}
+        if insert_response.data:
+            return {"status": "success", "inserted_profiles": insert_response.data}
+        else:
+            raise HTTPException(status_code=500, detail="Insert failed or returned empty data.")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 # FUNCTIONS
@@ -162,36 +173,10 @@ def fetch_player_match_data(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
-@router.post("/test-insert")
-def test_insert_summoner_profile(
-    summoner_name: str = Body(...),
-    tagline: str = Body(...),
-    region: str = Body(...),
-    user_id: str = Body(...),
-):
-    # Step 1: Get PUUID
-    puuid = get_puuid(summoner_name, tagline, region)
-
-    # Step 2: Get a match ID (any recent one, or just one to get player data)
-    match_ids = get_matchIDs(region, puuid, 1)
-    if not match_ids:
-        raise HTTPException(status_code=404, detail="No matches found.")
-
-    # Step 3: Get match data and player data
-    match_data = get_matchdata(region, match_ids[0])
-    player_data = get_player_matchData(match_data, puuid)
-
-    # Step 4: Insert to Supabase
-    result = insert_summoner_profiles(player_data, user_id, region)
-    return {"status": "inserted", "response": result.data}
-
-
-
 # Inserting data into SUPABASE
-def insert_summoner_profiles(player_data: dict, user_id:  str, region: str):
+def insert_summoner_profiles(player_data: dict, user_id: str, region: str):
     try:
-        response = supabase.table("summoner_profiles").insert({
+        payload = {
             "user_id": user_id,
             "summoner_name": player_data.get("riotIdGameName"),
             "tagline": player_data.get("riotIdTagline"),
@@ -200,8 +185,10 @@ def insert_summoner_profiles(player_data: dict, user_id:  str, region: str):
             "level": player_data.get("summonerLevel"),
             "icon_id": player_data.get("profileIcon"),
             "last_updated": datetime.now(timezone.utc).isoformat()
-        }).execute()
+        }
 
+        response = supabase.table("summoner_profiles").insert(payload).execute()
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to insert into Supabase: {e}")
+
