@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match Details - LoL Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="navbar">
+        <div class="container">
+            <h1 class="logo">LoL Tracker</h1>
+            <nav>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/leaderboards">Leaderboards</a></li>
+                    <li><a href="/about">About</a></li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <main class="container">
+        <div class="match-header">
+            <h1>Match Details</h1>
+            <div class="match-info">
+                <p>Match ID: {{ match.id }}</p>
+                <p>Date: {{ match.game_start.split('T')[0] }}</p>
+                <p class="match-result {{ match.winner }}">{{ "Blue Team Victory" if match.winner == "blue" else "Red Team Victory" }}</p>
+            </div>
+        </div>
+
+        <div class="teams-container">
+            <div class="team blue-team">
+                <h2>Blue Team {{ "(Winner)" if match.winner == "blue" else "" }}</h2>
+                <div class="team-players">
+                    {% for player in match.teams.blue %}
+                    <div class="player-card">
+                        <div class="player-champion">
+                            <img src="https://ddragon.leagueoflegends.com/cdn/11.14.1/img/champion/{{ player.champion_name }}.png" alt="{{ player.champion_name }}" onerror="this.src='{{ url_for('static', path='/images/default-champion.png') }}'">
+                        </div>
+                        <div class="player-info">
+                            <h3><a href="/summoner/{{ player.riotid_gamename }}/{{ player.riotid_tagline }}/{{ player.region if player.region else 'EUW1' }}">{{ player.riotid_gamename }}#{{ player.riotid_tagline }}</a></h3>
+                            <p class="player-role">{{ player.role if player.role else "Unknown" }}</p>
+                            <p class="player-kda">{{ player.kills }}/{{ player.deaths }}/{{ player.assists }}</p>
+                        </div>
+                        <div class="player-stats">
+                            <p>DMG: {{ player.total_damagedealttochampions }}</p>
+                            <p>Gold: {{ player.gold_earned }}</p>
+                            {% if player.skillshot_hit %}
+                            <p>Skillshots: {{ player.skillshot_hit }} hit / {{ player.skillshot_dodged }} dodged</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="team red-team">
+                <h2>Red Team {{ "(Winner)" if match.winner == "red" else "" }}</h2>
+                <div class="team-players">
+                    {% for player in match.teams.red %}
+                    <div class="player-card">
+                        <div class="player-champion">
+                            <img src="https://ddragon.leagueoflegends.com/cdn/11.14.1/img/champion/{{ player.champion_name }}.png" alt="{{ player.champion_name }}" onerror="this.src='{{ url_for('static', path='/images/default-champion.png') }}'">
+                        </div>
+                        <div class="player-info">
+                            <h3><a href="/summoner/{{ player.riotid_gamename }}/{{ player.riotid_tagline }}/{{ player.region if player.region else 'EUW1' }}">{{ player.riotid_gamename }}#{{ player.riotid_tagline }}</a></h3>
+                            <p class="player-role">{{ player.role if player.role else "Unknown" }}</p>
+                            <p class="player-kda">{{ player.kills }}/{{ player.deaths }}/{{ player.assists }}</p>
+                        </div>
+                        <div class="player-stats">
+                            <p>DMG: {{ player.total_damagedealttochampions }}</p>
+                            <p>Gold: {{ player.gold_earned }}</p>
+                            {% if player.skillshot_hit %}
+                            <p>Skillshots: {{ player.skillshot_hit }} hit / {{ player.skillshot_dodged }} dodged</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="match-notes">
+            <h2>Match Notes</h2>
+            <ul>
+                {% if match.teams.blue[0].team_early_surrendered or match.teams.red[0].team_early_surrendered %}
+                <li>This match ended in an early surrender.</li>
+                {% elif match.teams.blue[0].game_ended_in_surrender or match.teams.red[0].game_ended_in_surrender %}
+                <li>This match ended in a surrender.</li>
+                {% endif %}
+            </ul>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 LoL Tracker - Not affiliated with Riot Games</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', path='/js/main.js') }}"></script>
+</body>
+</html>

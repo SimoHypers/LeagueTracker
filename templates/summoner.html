@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ data.summoner.summoner_name }} - LoL Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="navbar">
+        <div class="container">
+            <h1 class="logo">LoL Tracker</h1>
+            <nav>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/leaderboards">Leaderboards</a></li>
+                    <li><a href="/about">About</a></li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <main class="container">
+        <div class="summoner-header">
+            <div class="summoner-icon">
+                <img src="https://ddragon.leagueoflegends.com/cdn/11.14.1/img/profileicon/{{ data.summoner.icon_id }}.png" alt="Summoner Icon" onerror="this.src='{{ url_for('static', path='/images/default-icon.png') }}'">
+            </div>
+            <div class="summoner-info">
+                <h1>{{ data.summoner.summoner_name }}<span class="tagline">#{{ data.summoner.tagline }}</span></h1>
+                <p class="summoner-level">Level {{ data.summoner.level }}</p>
+                <p class="summoner-region">{{ data.summoner.region }}</p>
+                <p class="last-updated">Last updated: {{ data.summoner.last_updated.split('T')[0] }}</p>
+                <button class="btn refresh-btn" onclick="location.href='/refresh-summoner/{{ data.summoner.summoner_name }}/{{ data.summoner.tagline }}/{{ data.summoner.region }}'">Refresh Data</button>
+            </div>
+        </div>
+
+        <div class="stats-overview">
+            <div class="stat-card">
+                <h3>Total Matches</h3>
+                <p class="stat-value">{{ data.total_matches }}</p>
+            </div>
+            <div class="stat-card">
+                <h3>Win Rate</h3>
+                <p class="stat-value">{{ data.win_rate }}%</p>
+            </div>
+            <div class="stat-card">
+                <h3>KDA Ratio</h3>
+                <p class="stat-value">{{ data.avg_kda.ratio }}</p>
+                <p class="stat-detail">{{ data.avg_kda.kills }} / {{ data.avg_kda.deaths }} / {{ data.avg_kda.assists }}</p>
+            </div>
+        </div>
+
+        <div class="champions-section">
+            <h2>Most Played Champions</h2>
+            <div class="champions-grid">
+                {% for champion in data.most_played_champions %}
+                <div class="champion-card">
+                    <div class="champion-icon">
+                        <img src="https://ddragon.leagueoflegends.com/cdn/11.14.1/img/champion/{{ champion.name }}.png" alt="{{ champion.name }}" onerror="this.src='{{ url_for('static', path='/images/default-champion.png') }}'">
+                    </div>
+                    <div class="champion-info">
+                        <h3>{{ champion.name }}</h3>
+                        <p>{{ champion.count }} games</p>
+                        <p class="win-rate">{{ champion.win_rate }}% WR</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="matches-section">
+            <h2>Recent Matches</h2>
+            <div class="matches-list">
+                {% for match in data.matches %}
+                <div class="match-card {% if match.win %}win{% else %}loss{% endif %}">
+                    <div class="match-champion">
+                        <img src="https://ddragon.leagueoflegends.com/cdn/11.14.1/img/champion/{{ match.champion_name }}.png" alt="{{ match.champion_name }}" onerror="this.src='{{ url_for('static', path='/images/default-champion.png') }}'">
+                    </div>
+                    <div class="match-result">
+                        <h3>{{ "Victory" if match.win else "Defeat" }}</h3>
+                        <p>{{ match.game_start.split('T')[0] }}</p>
+                    </div>
+                    <div class="match-stats">
+                        <p class="kda">{{ match.kills }}/{{ match.deaths }}/{{ match.assists }}</p>
+                        <p class="kda-ratio">{{ ((match.kills + match.assists) / max(1, match.deaths))|round(2) }} KDA</p>
+                    </div>
+                    <div class="match-details">
+                        {% if match.damage_per_minute %}
+                        <p>{{ match.damage_per_minute|round(1) }} DMG/min</p>
+                        {% endif %}
+                        <p>{{ match.gold_earned }} gold</p>
+                    </div>
+                    <div class="match-actions">
+                        <a href="/match/{{ match.match_id }}" class="btn details-btn">Details</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 LoL Tracker - Not affiliated with Riot Games</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', path='/js/main.js') }}"></script>
+</body>
+</html>

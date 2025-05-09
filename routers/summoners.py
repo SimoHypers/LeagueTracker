@@ -109,11 +109,12 @@ def insert_player_matchData(puuid: str, match: Dict[str, Any]):
 def create_summoner_profile(summoner: SummonerCreate):
     puuid = get_puuid(summoner.summoner_name, summoner.tagline, summoner.region)
 
-    ids = get_matchIDs(summoner.region.lower(), puuid, 1)
-    if not ids:
-        raise HTTPException(status_code=404, detail="No recent matches")
+    match_ids = get_matchIDs(summoner.region.lower(), puuid, 10)
+    if not match_ids:
+        raise HTTPException(status_code=404, detail="No recent matches found")
 
-    match = get_matchdata(summoner.region.lower(), ids[0])
+    # Use first match for profile info
+    match = get_matchdata(summoner.region.lower(), match_ids[0])
     player = get_player_matchData(match, puuid)
 
     payload = {
@@ -129,13 +130,11 @@ def create_summoner_profile(summoner: SummonerCreate):
     try:
         res = supabase.table("summoner_profiles").insert(payload).execute()
     except Exception as e:
-        # Check for duplicate key violation
         if "duplicate key" in str(e) or "violates unique constraint" in str(e):
             raise HTTPException(
                 status_code=400,
                 detail=f"Summoner '{summoner.summoner_name}#{summoner.tagline}' already exists in this region."
             )
-        # Unknown error
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
     if not res.data:
@@ -143,7 +142,10 @@ def create_summoner_profile(summoner: SummonerCreate):
             status_code=500,
             detail=f"Insert failed, no data returned. Full response: {res.__dict__}"
         )
-    
-    insert_player_matchData(puuid, match)
+
+    # Loop through all matches and insert each
+    for match_id in match_ids:
+        match = get_matchdata(summoner.region.lower(), match_id)
+        insert_player_matchData(puuid, match)
 
     return SummonerProfile(**res.data[0])
