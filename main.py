@@ -270,18 +270,19 @@ def calculate_win_rate(matches: List[Dict[str, Any]]) -> float:
 
 def calculate_avg_kda(matches: List[Dict[str, Any]]) -> Dict[str, float]:
     if not matches:
-        return {"kills": 0, "deaths": 0, "assists": 0}
+        return {"kills": 0, "deaths": 0, "assists": 0, "ratio": 0}
     
-    total_kills = sum(match["kills"] for match in matches if match["kills"] is not None)
-    total_deaths = sum(match["deaths"] for match in matches if match["deaths"] is not None)
-    total_assists = sum(match["assists"] for match in matches if match["assists"] is not None)
+    total_kills = sum(match["kills"] for match in matches if match.get("kills") is not None)
+    total_deaths = sum(match["deaths"] for match in matches if match.get("deaths") is not None)
+    total_assists = sum(match["assists"] for match in matches if match.get("assists") is not None)
     
     count = len(matches)
+    # Use max(1, total_deaths) to avoid division by zero
     return {
-        "kills": round(total_kills / count, 1),
-        "deaths": round(total_deaths / count, 1),
-        "assists": round(total_assists / count, 1),
-        "ratio": round((total_kills + total_assists) / max(1, total_deaths), 2)
+        "kills": round(total_kills / count, 1) if count > 0 else 0,
+        "deaths": round(total_deaths / count, 1) if count > 0 else 0,
+        "assists": round(total_assists / count, 1) if count > 0 else 0,
+        "ratio": round((total_kills + total_assists) / max(1, total_deaths), 2) if total_deaths > 0 else round(total_kills + total_assists, 2)
     }
 
 def get_most_played_champions(matches: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
